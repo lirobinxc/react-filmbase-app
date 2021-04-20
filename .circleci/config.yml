@@ -57,7 +57,7 @@ jobs:
             npm run build
             cd build
             zip ../build.zip -r * .[^.]*
-            # echo 'Build successful'
+            echo Build successful
       - run:
           name: Deploy to AWS S3
           command: |
@@ -95,7 +95,7 @@ jobs:
             npm run build
             cd build
             zip ../build.zip -r * .[^.]*  # Recursively zips everything in build folder
-            echo "Build successful"
+            echo Build successful
       - run:
           name: Deploy to AWS CloudFront
           command: |
