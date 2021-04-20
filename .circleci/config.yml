@@ -16,7 +16,7 @@ jobs:
           # Caches allow CircleCI to not have to reinstall the same packages (only install new ones)
           # CircleCI restores cache in order of keys listed
           # The cache will be restored from the first matching key.
-          key: # The key determines if a cache is updated
+          keys: # The key determines if a cache is updated
             # Find a cache corresponding to this specific package-lock.json checksum
             # when this file is changed, this key will fail
             - app-{{ checksum "package.json" }}
