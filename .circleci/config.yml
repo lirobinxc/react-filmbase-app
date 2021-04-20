@@ -1,0 +1,133 @@
+version: 2.1
+
+jobs:
+  build:
+    docker:
+      - image: cimg/node:15.6.0
+    working_directory: ~/repo # Where the docker image is saved, defaults to ~/project
+    steps:
+      - checkout # Special step to checkout your source code of your current branch
+      - run:
+          # Optional step: Displays current branch
+          name: Show current branch
+          command: echo ${CIRCLE_BRANCH}
+      - restore_cache:
+          # Caches allow CircleCI to not have to reinstall the same packages (only install new ones)
+          # CircleCI restores cache in order of keys listed
+          # The cache will be restored from the first matching key.
+          keys: # The key determines if a cache is updated
+            # Find a cache corresponding to this specific package-lock.json checksum
+            # when this file is changed, this key will fail
+            - app-{{ checksum "package.json" }}
+            # Fallback: used if checksum fails
+            # Finds the most recently generated cache used from any branch
+            - app-
+      - run:
+          # Install dependencies if no existing or up-to-date cache found
+          name: Install dependencies
+          command: npm install
+      - save_cache:
+          # List of directories which should be added to the cache
+          paths:
+            - node_modules
+          # Unique identifier for this cache
+          key: app-{{ checksum "package.json" }}
+
+  deploy-to-aws-s3:
+    docker:
+      - image: cimg/node:15.6.0
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - run:
+          name: Show current branch
+          command: echo ${CIRCLE_BRANCH}
+      - run:
+          name: Installing AWS CLI
+          working_directory: /
+          command: |
+            sudo apt-get -y -q update
+            sudo apt-get install -y awscli
+            sudo apt-get install -y python3-pip python-dev build-essential
+      - run:
+          name: Build project
+          command: |
+            npm install
+            npm run build
+            cd build
+            zip ../build.zip -r * .[^.]*
+            echo "Build successful"
+      - run:
+          name: Deploy to AWS S3
+          command: |
+            if [ "${CIRCLE_BRANCH}" == "master" ]
+            then
+              aws s3 sync ~/repo/build s3://${AWS_BUCKET_PRODUCTION} --delete
+            elif [ "${CIRCLE_BRANCH}" == "staging" ]
+            then
+              aws s3 sync ~/repo/build s3://${AWS_BUCKET_STAGING} --delete
+            else [ "${CIRCLE_BRANCH}" == "dev" ]
+              aws s3 sync ~/repo/build s3://${AWS_BUCKET_DEV} --delete
+            fi
+
+  deploy-to-aws-cloudfront:
+    docker:
+      - image: cimg/node:15.6.0
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - run:
+          name: Show current branch
+          command: echo ${CIRCLE_BRANCH}
+      - run:
+          name: Installing AWS CLI
+          working_directory: /
+          command: |
+            sudo apt-get -y -qq update
+            sudo apt-get install -y awscli
+            sudo apt-get install -y python3-pip python-dev build-essential
+      - run:
+          name: Build project
+          command: |
+            npm install
+            npm run build
+            cd build
+            zip ../build.zip -r * .[^.]*
+            echo "Build successful"
+      - run:
+          name: Deploy to AWS CloudFront
+          command: |
+            aws configure set preview.cloudfront true
+            if [ "${CIRCLE_BRANCH}" == "master" ]
+            then
+              aws cloudfront create-invalidation --distribution-id ${PROD_DISTRIBUTION_ID} --paths /\*
+            elif [ "${CIRCLE_BRANCH}" == "staging" ]
+            then
+              aws cloudfront create-invalidation --distribution-id ${STAGING_DISTRIBUTION_ID} --paths /\*
+            else
+                aws cloudfront create-invalidation --distribution-id ${DEV_DISTRIBUTION_ID} --paths /\*
+            fi
+
+# Define which ORDER to run the jobs (and if any jobs rely on other jobs finishing first)
+workflows:
+  build_and_deploy:
+    jobs:
+      - build
+      - deploy-to-aws-s3:
+          requires:
+            - build # this job depends on `build` finishing
+          filters:
+            branches: # only run on these branches
+              only:
+                - dev
+                - staging
+                - master
+      - deploy-to-aws-cloudfront:
+          requires:
+            - deploy-to-aws-s3 # this job depends on `deploy-to-aws-s3` finishing
+          filters:
+            branches: # only run on these branches
+              only:
+                - dev
+                - staging
+                - master
