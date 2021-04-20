@@ -10,7 +10,7 @@ jobs:
       - run:
           # Optional step: Displays current branch
           name: Show current branch
-          command: echo ${CURRENT_BRANCH}
+          command: echo ${CIRCLE_BRANCH}
       - restore_cache:
           # Caches allow CircleCI to not have to reinstall the same packages (only install new ones)
           # CircleCI restores cache in order of keys listed
@@ -41,14 +41,14 @@ jobs:
       - checkout
       - run:
           name: Show current branch
-          command: echo ${CURRENT_BRANCH}
+          command: echo ${CIRCLE_BRANCH}
       - run:
           name: Installing AWS CLI
           working_directory: /
           command: |
-            sudo apt-get -y -qq update
+            sudo apt-get -y -q update
             sudo apt-get install -y awscli
-            sudo apt-get install -y python-pip python-dev build-essential
+            sudo apt-get install -y python3-pip python-dev build-essential
       - run:
           name: Build project
           command: |
@@ -60,13 +60,13 @@ jobs:
       - run:
           name: Deploy to AWS S3
           command: |
-            if [ "${CURRENT_BRANCH}" == "master" ] |
+            if [ "${CIRCLE_BRANCH}" == "master" ] |
               then
                 aws --region ${AWS_REGION} s3 sync ~/repo/build s3://${AWS_BUCKET_PRODUCTION} --delete
-            elif [ "${CURRENT_BRANCH}" == "staging" ] |
+            elif [ "${CIRCLE_BRANCH}" == "staging" ] |
               then
                 aws --region ${AWS_REGION} s3 sync ~/repo/build s3://${AWS_BUCKET_STAGING} --delete
-            else [ "${CURRENT_BRANCH}" == "dev" ] |
+            else [ "${CIRCLE_BRANCH}" == "dev" ] |
               then
                 aws --region ${AWS_REGION} s3 sync ~/repo/build s3://${AWS_BUCKET_DEV} --delete
             fi
@@ -79,7 +79,7 @@ jobs:
       - checkout
       - run:
           name: Show current branch
-          command: echo ${CURRENT_BRANCH}
+          command: echo ${CIRCLE_BRANCH}
       - run:
           name: Installing AWS CLI
           working_directory: /
@@ -99,10 +99,10 @@ jobs:
           name: Deploy to AWS CloudFront
           command: |
             aws configure set preview.cloudfront
-            if [ "${CURRENT_BRANCH}" == "master" ] |
+            if [ "${CIRCLE_BRANCH}" == "master" ] |
               then
                 aws cloudfront create-invalidation --distribution-id ${PROD_DISTRIBUTION_ID} --paths /\*
-            elif [ "${CURRENT_BRANCH}" == "staging" ] |
+            elif [ "${CIRCLE_BRANCH}" == "staging" ] |
               then
                 aws cloudfront create-invalidation --distribution-id ${STAGING_DISTRIBUTION_ID} --paths /\*
             else
