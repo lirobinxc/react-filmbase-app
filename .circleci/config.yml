@@ -36,79 +36,79 @@ jobs:
 
   deploy-to-aws-s3:
     docker:
-      - image: cimg/node:15.6.0
-      working_directory: ~/repo
-      steps:
-        - checkout
-        - run:
-            name: Show current branch
-            command: echo ${CURRENT_BRANCH}
-        - run:
-            name: Installing AWS CLI
-            working_directory: /
-            command:
-              sudo apt-get -y -qq update
-              sudo apt-get install -y awscli
-              sudo apt-get install -y python-pip python-dev build-essential
-        - run:
-            name: Build project
-            command:
-              npm install
-              npm run build
-              cd build
-              zip ../build.zip -r * .[^.]*  # Recursively zips everything in build folder
-              echo "Build successful"
-        - run:
-          name: Deploy to AWS S3
-          command: |
-            if [ "${CURRENT_BRANCH}" == "master" ] |
-              then
-                aws --region ${AWS_REGION} s3 sync ~/repo/build s3://${AWS_BUCKET_PRODUCTION} --delete
-            elif [ "${CURRENT_BRANCH}" == "staging" ] |
-              then
-                aws --region ${AWS_REGION} s3 sync ~/repo/build s3://${AWS_BUCKET_STAGING} --delete
-            else [ "${CURRENT_BRANCH}" == "dev" ] |
-              then
-                aws --region ${AWS_REGION} s3 sync ~/repo/build s3://${AWS_BUCKET_DEV} --delete
-            fi 
+        - image: cimg/node:15.6.0
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - run:
+          name: Show current branch
+          command: echo ${CURRENT_BRANCH}
+      - run:
+          name: Installing AWS CLI
+          working_directory: /
+          command:
+            sudo apt-get -y -qq update
+            sudo apt-get install -y awscli
+            sudo apt-get install -y python-pip python-dev build-essential
+      - run:
+          name: Build project
+          command:
+            npm install
+            npm run build
+            cd build
+            zip ../build.zip -r * .[^.]*  # Recursively zips everything in build folder
+            echo "Build successful"
+      - run:
+        name: Deploy to AWS S3
+        command: |
+          if [ "${CURRENT_BRANCH}" == "master" ] |
+            then
+              aws --region ${AWS_REGION} s3 sync ~/repo/build s3://${AWS_BUCKET_PRODUCTION} --delete
+          elif [ "${CURRENT_BRANCH}" == "staging" ] |
+            then
+              aws --region ${AWS_REGION} s3 sync ~/repo/build s3://${AWS_BUCKET_STAGING} --delete
+          else [ "${CURRENT_BRANCH}" == "dev" ] |
+            then
+              aws --region ${AWS_REGION} s3 sync ~/repo/build s3://${AWS_BUCKET_DEV} --delete
+          fi 
       
   deploy-to-aws-cloudfront:
     docker:
       - image: cimg/node:15.6.0
-      working_directory: ~/repo
-      steps:
-        - checkout
-        - run:
-            name: Show current branch
-            command: echo ${CURRENT_BRANCH}
-        - run:
-            name: Installing AWS CLI
-            working_directory: /
-            command:
-              sudo apt-get -y -qq update
-              sudo apt-get install -y awscli
-              sudo apt-get install -y python-pip python-dev build-essential
-        - run:
-            name: Build project
-            command:
-              npm install
-              npm run build
-              cd build
-              zip ../build.zip -r * .[^.]*  # Recursively zips everything in build folder
-              echo "Build successful"
-        - run:
-          name: Deploy to AWS CloudFront
-          command: |
-            aws configure set preview.cloudfront
-            if [ "${CURRENT_BRANCH}" == "master" ] |
-              then
-                aws cloudfront create-invalidation --distribution-id ${PROD_DISTRIBUTION_ID} --paths /\*
-            elif [ "${CURRENT_BRANCH}" == "staging" ] |
-              then
-                aws cloudfront create-invalidation --distribution-id ${STAGING_DISTRIBUTION_ID} --paths /\*
-            else
-                aws cloudfront create-invalidation --distribution-id ${DEV_DISTRIBUTION_ID} --paths /\*
-            fi
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - run:
+          name: Show current branch
+          command: echo ${CURRENT_BRANCH}
+      - run:
+          name: Installing AWS CLI
+          working_directory: /
+          command:
+            sudo apt-get -y -qq update
+            sudo apt-get install -y awscli
+            sudo apt-get install -y python-pip python-dev build-essential
+      - run:
+          name: Build project
+          command:
+            npm install
+            npm run build
+            cd build
+            zip ../build.zip -r * .[^.]*  # Recursively zips everything in build folder
+            echo "Build successful"
+      - run:
+        name: Deploy to AWS CloudFront
+        command: |
+          aws configure set preview.cloudfront
+          if [ "${CURRENT_BRANCH}" == "master" ] |
+            then
+              aws cloudfront create-invalidation --distribution-id ${PROD_DISTRIBUTION_ID} --paths /\*
+          elif [ "${CURRENT_BRANCH}" == "staging" ] |
+            then
+              aws cloudfront create-invalidation --distribution-id ${STAGING_DISTRIBUTION_ID} --paths /\*
+          else
+              aws cloudfront create-invalidation --distribution-id ${DEV_DISTRIBUTION_ID} --paths /\*
+          fi
 
 # Define which ORDER to run the jobs (and if any jobs rely on other jobs finishing first)
 workflows: 
